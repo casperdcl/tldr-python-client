@@ -14,7 +14,7 @@ from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from termcolor import colored
 import colorama  # Required for Windows
-import argcomplete
+import shtab
 from glob import glob
 
 __version__ = "1.0.0"
@@ -384,7 +384,7 @@ def main():
         'command', type=str, nargs='*', help="command to lookup", metavar='command',
     )
 
-    argcomplete.autocomplete(parser)
+    shtab.add_argument_to(parser)
     options = parser.parse_args()
 
     colorama.init(strip=options.color)
