@@ -382,7 +382,6 @@ def main():
 
     parser.add_argument(
         'command', type=str, nargs='*', help="command to lookup", metavar='command',
-        choices=get_commands() + [[]]
     )
 
     argcomplete.autocomplete(parser)
