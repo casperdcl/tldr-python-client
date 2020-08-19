@@ -325,8 +325,6 @@ def update_cache(language=None):
 def main():
     parser = ArgumentParser(
         prog="tldr",
-        usage="tldr [-u] [-p PLATFORM] [-l] [-s SOURCE] [-c] [-r] [-L LANGUAGE]" +
-        "command",
         description="Python command line client for tldr"
     )
     parser.add_argument(
