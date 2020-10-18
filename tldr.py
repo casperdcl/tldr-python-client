@@ -15,10 +15,9 @@ from urllib.error import HTTPError, URLError
 from termcolor import colored
 import colorama  # Required for Windows
 import shtab
-from glob import glob
 
-__version__ = "1.0.0"
-__client_specification__ = "1.3"
+__version__ = "1.1.0"
+__client_specification__ = "1.4"
 
 REQUEST_HEADERS = {'User-Agent': 'tldr-python-client'}
 PAGES_SOURCE_LOCATION = os.environ.get(
@@ -29,14 +28,6 @@ DOWNLOAD_CACHE_LOCATION = os.environ.get(
     'TLDR_DOWNLOAD_CACHE_LOCATION',
     'https://tldr-pages.github.io/assets/tldr.zip'
 )
-
-DEFAULT_LANG = os.environ.get(
-    'LANG',
-    'C'
-).split('_')[0]
-
-if DEFAULT_LANG == 'C' or DEFAULT_LANG == 'POSIX':
-    DEFAULT_LANG = None
 
 USE_CACHE = int(os.environ.get('TLDR_CACHE_ENABLED', '1')) > 0
 MAX_CACHE_AGE = int(os.environ.get('TLDR_CACHE_MAX_AGE', 24))
@@ -53,6 +44,29 @@ OS_DIRECTORIES = {
     "sunos": "sunos",
     "win32": "windows"
 }
+
+
+def get_language_code(language):
+    language = language.split('.')[0]
+    if language in ['pt_PT', 'pt_BR', 'zh_TW']:
+        return language
+    elif language == "pt":
+        return "pt_PT"
+    return language.split('_')[0]
+
+
+def get_default_language():
+    default_lang = get_language_code(
+        os.environ.get(
+            'LANG',
+            'C'
+        )
+    )
+
+    if default_lang == 'C' or default_lang == 'POSIX':
+        default_lang = None
+
+    return default_lang
 
 
 def get_cache_dir():
@@ -162,12 +176,14 @@ def get_platform_list():
 def get_language_list():
     languages = os.environ.get('LANGUAGE', '').split(':')
     languages = list(map(
-        lambda x: x.split('_')[0],
+        get_language_code,
         filter(lambda x: not (x == 'C' or x == 'POSIX' or x == ''), languages)
     ))
-    if DEFAULT_LANG is not None:
-        if DEFAULT_LANG not in languages:
-            languages.append(DEFAULT_LANG)
+
+    default_lang = get_default_language()
+
+    if default_lang is not None and default_lang not in languages:
+        languages.append(default_lang)
     else:
         languages = []
     if 'en' not in languages:
@@ -223,17 +239,20 @@ LEADING_SPACES_NUM = 2
 
 COMMAND_SPLIT_REGEX = re.compile(r'(?P<param>{{.+?}})')
 PARAM_REGEX = re.compile(r'(?:{{)(?P<param>.+?)(?:}})')
-CACHE_FILE_REGEX = re.compile(r'.*\/(.*)\.md')
 
 
 def get_commands(platforms=None):
     if platforms is None:
         platforms = get_platform_list()
 
-    cache_files = []
-    for platform in platforms:
-        cache_files += glob(os.path.join(get_cache_dir(), 'pages', platform, '*.md'))
-    return [re.search(CACHE_FILE_REGEX, x).group(1) for x in cache_files]
+    commands = []
+    if os.path.exists(get_cache_dir()):
+        for platform in platforms:
+            path = os.path.join(get_cache_dir(), 'pages', platform)
+            if not os.path.exists(path):
+                continue
+            commands += [file[:-3] for file in os.listdir(path) if file.endswith(".md")]
+    return commands
 
 
 def colors_of(key):
@@ -269,7 +288,7 @@ def output(page):
                     colored(
                         line.replace('>', '').replace('<', ''),
                         *colors_of('description')
-                    )
+                )
                 sys.stdout.buffer.write(line.encode('utf-8'))
             elif line[0] == '-':
                 line = '\n' + ' ' * LEADING_SPACES_NUM + \
@@ -293,7 +312,8 @@ def output(page):
 
 def update_cache(language=None):
     if language is None:
-        language = DEFAULT_LANG if DEFAULT_LANG is not None else 'en'
+        default_lang = get_default_language()
+        language = default_lang if default_lang is not None else 'en'
     elif isinstance(language, list):
         language = language[0]
     try:
